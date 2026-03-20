@@ -102,7 +102,11 @@ export const mapPlugin: WidgetPlugin = {
               offset: 12,
               closeButton: false,
               className: "koen-map-popup",
-            }).setHTML(`<div style="font-size:13px;padding:2px 4px">${m.label}</div>`)
+            })
+            const labelEl = document.createElement("div")
+            labelEl.style.cssText = "font-size:13px;padding:2px 4px"
+            labelEl.textContent = m.label
+            popup.setDOMContent(labelEl)
             marker.setPopup(popup)
           }
         }

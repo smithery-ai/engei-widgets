@@ -54,7 +54,7 @@ export const katexPlugin: WidgetPlugin = {
           katex.render(expression, wrapper, {
             displayMode: spec.display !== false,
             throwOnError: false,
-            trust: true,
+            trust: false,
           })
         } catch (err: any) {
           wrapper.textContent = `KaTeX error: ${err.message}`
