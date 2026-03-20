@@ -1,0 +1,39 @@
+{
+  "name": "engei-widgets",
+  "version": "0.1.0",
+  "description": "Widget plugin SDK for engei — build custom widgets for markdown preview.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Smithery",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smithery-ai/engei-widgets"
+  },
+  "main": "dist/engei-widgets.js",
+  "module": "dist/engei-widgets.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/engei-widgets.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/engei-widgets.js",
+    "dist/index.d.ts",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "diff": "^8.0.3",
+    "highlight.js": "^11.11.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vite": "^7.0.4",
+    "vite-plugin-dts": "^4.5.0"
+  }
+}
