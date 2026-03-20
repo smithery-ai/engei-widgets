@@ -22,11 +22,20 @@ export const mermaidPlugin: WidgetPlugin = {
       return
     }
 
+    const isOverlay = container.closest(".koen-widget-overlay-content") !== null
+
     const wrapper = document.createElement("div")
     wrapper.style.display = "flex"
     wrapper.style.justifyContent = "center"
-    wrapper.style.margin = "1em 0"
     wrapper.style.overflow = "auto"
+    if (isOverlay) {
+      wrapper.style.width = "100%"
+      wrapper.style.height = "100%"
+      wrapper.style.padding = "40px"
+      wrapper.style.alignItems = "center"
+    } else {
+      wrapper.style.margin = "1em 0"
+    }
     container.innerHTML = ""
     container.appendChild(wrapper)
 
@@ -78,7 +87,25 @@ export const mermaidPlugin: WidgetPlugin = {
                 svgEl.removeAttribute("width")
                 // Start scrolled to the left, not centered
                 wrapper.style.justifyContent = "flex-start"
+              } else if (isOverlay) {
+                // In overlay: scale to fit both dimensions
+                svgEl.style.maxWidth = "100%"
+                svgEl.style.maxHeight = "100%"
+                svgEl.style.width = "auto"
+                svgEl.style.height = "auto"
+                svgEl.removeAttribute("width")
+                svgEl.removeAttribute("height")
+              } else {
+                // Inline: scale diagram to fill available width
+                svgEl.style.width = "100%"
+                svgEl.style.height = "auto"
+                svgEl.removeAttribute("height")
               }
+            } else {
+              // No viewBox — still try to fill width
+              svgEl.style.width = "100%"
+              svgEl.style.height = "auto"
+              svgEl.removeAttribute("height")
             }
           }
         } catch (renderErr: any) {
