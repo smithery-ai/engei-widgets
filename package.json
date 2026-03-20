@@ -28,7 +28,6 @@
     "build": "vite build"
   },
   "dependencies": {
-    "ascii-morph": "^0.2.3",
     "diff": "^8.0.3",
     "dompurify": "^3.3.3",
     "highlight.js": "^11.11.1"

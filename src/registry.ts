@@ -4,7 +4,7 @@
  */
 
 import type { WidgetPlugin, WidgetHydrator, WidgetSpec } from "./types"
-import { ASCII_SHAPES } from "./asciiShapes"
+
 import { addExpandButton } from "./expandOverlay"
 import { chartPlugin } from "./widgets/ChartWidget"
 import { mermaidPlugin } from "./widgets/MermaidWidget"
@@ -58,7 +58,6 @@ export function getDefaultWidgets(): WidgetPlugin[] {
 
 export function renderWidgetError(el: HTMLElement, type: string, _message: string, theme: "dark" | "light") {
   const isDark = theme === "dark"
-  const color = isDark ? "#4a4540" : "#ccc"
 
   // Recover spec source for debug details
   const specAttr = el.getAttribute("data-widget-spec")
@@ -79,73 +78,14 @@ export function renderWidgetError(el: HTMLElement, type: string, _message: strin
   wrapper.style.margin = "1em 0"
   wrapper.style.textAlign = "center"
 
-  // ASCII morph canvas
-  const pre = document.createElement("pre")
-  pre.style.margin = "0 auto"
-  pre.style.padding = "8px 0"
-  pre.style.background = "none"
-  pre.style.border = "none"
-  pre.style.fontSize = "0.75em"
-  pre.style.lineHeight = "1.4"
-  pre.style.color = color
-  pre.style.fontFamily = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace"
-  pre.style.overflow = "hidden"
-  pre.style.display = "inline-block"
-  pre.style.textAlign = "left"
-  wrapper.appendChild(pre)
-
-  // Message below
   const msg = document.createElement("div")
   msg.style.fontSize = "0.8em"
   msg.style.color = isDark ? "#5a5550" : "#bbb"
   msg.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-  msg.style.marginTop = "4px"
   msg.textContent = `${type} widget unavailable`
   wrapper.appendChild(msg)
 
   el.appendChild(wrapper)
-
-  // Start morphing animation
-  let disposed = false
-  const controller = new AbortController()
-
-  import("ascii-morph").then(mod => {
-    if (disposed) return
-    const AsciiMorph = mod.default || mod
-
-    const morpher = AsciiMorph({ x: 35, y: 16 })
-    let shapeIdx = Math.floor(Math.random() * ASCII_SHAPES.length)
-
-    // Render first shape
-    const update = morpher.update(pre)
-    const firstFrames = morpher.morph(
-      ASCII_SHAPES[shapeIdx],
-      ASCII_SHAPES[shapeIdx],
-    )
-    if (firstFrames.length > 0) update(firstFrames[firstFrames.length - 1])
-
-    // Cycle shapes
-    async function cycle() {
-      while (!disposed) {
-        await new Promise(r => setTimeout(r, 3000))
-        if (disposed) break
-
-        const nextIdx = (shapeIdx + 1) % ASCII_SHAPES.length
-        const frames = morpher.morph(
-          ASCII_SHAPES[shapeIdx],
-          ASCII_SHAPES[nextIdx],
-        )
-        shapeIdx = nextIdx
-
-        try {
-          await morpher.animate(frames, update, { signal: controller.signal })
-        } catch {
-          break
-        }
-      }
-    }
-    cycle()
-  })
 
   // Details toggle
   if (source) {
@@ -181,10 +121,6 @@ export function renderWidgetError(el: HTMLElement, type: string, _message: strin
     el.appendChild(details)
   }
 
-  return () => {
-    disposed = true
-    controller.abort()
-  }
 }
 
 // ─── Hydration ──────────────────────────────────────────────
