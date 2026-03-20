@@ -63,6 +63,22 @@ export const mermaidPlugin: WidgetPlugin = {
           const { svg } = await mermaid.render(id, diagram)
           if (disposed) return
           wrapper.innerHTML = svg
+          // Prevent ultra-wide diagrams from becoming unreadably small
+          // by setting min-width from the viewBox so overflow:auto scrolls instead
+          const svgEl = wrapper.querySelector("svg")
+          if (svgEl) {
+            const vb = svgEl.getAttribute("viewBox")?.split(" ")
+            if (vb && vb.length === 4) {
+              const vbW = parseFloat(vb[2])
+              const vbH = parseFloat(vb[3])
+              // If aspect ratio is wider than 4:1, let it scroll horizontally
+              if (vbW / vbH > 4) {
+                svgEl.style.minWidth = `${Math.min(vbW, 1200)}px`
+                svgEl.style.width = "auto"
+                svgEl.removeAttribute("width")
+              }
+            }
+          }
         } catch (renderErr: any) {
           if (disposed) return
           const raw = typeof renderErr === "string" ? renderErr : renderErr?.message || ""
