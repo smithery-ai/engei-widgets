@@ -37,6 +37,7 @@ const PALETTE = [
 
 export const chartPlugin: WidgetPlugin = {
   type: "chart",
+  codeBlockLang: "chart",
   hydrate: (container, spec, theme) => {
     const config = spec.config
     if (!config) {

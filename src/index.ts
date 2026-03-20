@@ -16,6 +16,7 @@ export { excalidrawPlugin } from "./widgets/ExcalidrawWidget"
 export { mapPlugin } from "./widgets/MapWidget"
 export { timelinePlugin } from "./widgets/TimelineWidget"
 export { calendarPlugin } from "./widgets/CalendarWidget"
+export { htmlPlugin } from "./widgets/HtmlWidget"
 
 // Utilities for widget authors
 export { loadCDN, escapeHtml } from "./utils"
