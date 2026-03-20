@@ -76,6 +76,8 @@ export const mermaidPlugin: WidgetPlugin = {
                 svgEl.style.minWidth = `${Math.min(vbW, 1200)}px`
                 svgEl.style.width = "auto"
                 svgEl.removeAttribute("width")
+                // Start scrolled to the left, not centered
+                wrapper.style.justifyContent = "flex-start"
               }
             }
           }
