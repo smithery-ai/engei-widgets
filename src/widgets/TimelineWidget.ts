@@ -23,6 +23,12 @@ const DEFAULT_COLORS = ["#6a8ac0", "#7aa874", "#c4a050", "#C15F3C", "#a070b0", "
 export const timelinePlugin: WidgetPlugin = {
   type: "timeline",
   codeBlockLang: "timeline",
+  toSpec: (text) => {
+    const parsed = JSON.parse(text.trim())
+    // Accept both raw array and { events: [...] } formats
+    if (Array.isArray(parsed)) return { events: parsed }
+    return parsed
+  },
   hydrate: (container, spec, theme) => {
     const events: TimelineEvent[] = spec.events
     if (!events || !Array.isArray(events) || events.length === 0) {

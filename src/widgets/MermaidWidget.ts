@@ -5,6 +5,7 @@
 
 import type { WidgetPlugin } from "../types"
 import { loadCDN } from "../utils"
+import { renderWidgetError } from "../registry"
 
 const MERMAID_CDN = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"
 
@@ -58,13 +59,20 @@ export const mermaidPlugin: WidgetPlugin = {
           },
         })
 
-        const { svg } = await mermaid.render(id, diagram)
-        if (disposed) return
-        wrapper.innerHTML = svg
+        try {
+          const { svg } = await mermaid.render(id, diagram)
+          if (disposed) return
+          wrapper.innerHTML = svg
+        } catch (renderErr: any) {
+          if (disposed) return
+          const raw = typeof renderErr === "string" ? renderErr : renderErr?.message || ""
+          const msg = raw.replace(/<[^>]*>/g, "").replace(/\{[^}]{50,}\}/g, "").trim().slice(0, 150) || "Syntax error in diagram"
+          renderWidgetError(container, "mermaid", msg, theme)
+        }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         if (disposed) return
-        container.textContent = `Failed to render diagram: ${err.message}`
+        renderWidgetError(container, "mermaid", `Failed to load Mermaid: ${err.message}`, theme)
       })
 
     return () => {

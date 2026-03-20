@@ -26,11 +26,22 @@ export function buildWidgetRegistry(plugins: WidgetPlugin[]): Map<string, Widget
   return new Map(plugins.map(p => [p.type, p.hydrate]))
 }
 
+// Aliases: alternative code block lang names that map to the same plugin
+const LANG_ALIASES: Record<string, string> = {
+  katex: "math",
+  latex: "math",
+}
+
 /** Build a Map<codeBlockLang, plugin> for parseWithPositions. */
 export function buildLangMap(plugins: WidgetPlugin[]): Map<string, WidgetPlugin> {
   const map = new Map<string, WidgetPlugin>()
   for (const p of plugins) {
     if (p.codeBlockLang) map.set(p.codeBlockLang, p)
+  }
+  // Register aliases
+  for (const [alias, canonical] of Object.entries(LANG_ALIASES)) {
+    const plugin = map.get(canonical)
+    if (plugin && !map.has(alias)) map.set(alias, plugin)
   }
   return map
 }
