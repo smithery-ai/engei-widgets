@@ -51,7 +51,8 @@ export const attachmentPlugin: WidgetPlugin = {
     const hoverBg = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"
 
     const link = document.createElement("a")
-    link.href = url
+    // Use absolute URL so the preview click handler opens in new tab
+    link.href = url.startsWith("/") ? `${window.location.origin}${url}` : url
     link.target = "_blank"
     link.rel = "noopener noreferrer"
     link.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:3px 8px 3px 4px;border-radius:4px;text-decoration:none;margin:2px 0;transition:background 0.1s;cursor:pointer`
