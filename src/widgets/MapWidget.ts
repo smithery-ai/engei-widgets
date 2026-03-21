@@ -6,7 +6,8 @@
  * Spec fields:
  *   center?: [lat, lng]    — map center (default: [0, 0])
  *   zoom?: number          — zoom level (default: 2)
- *   markers?: Array<{ location: [lat, lng], label?: string, color?: string }>
+ *   markers?: Array<{ location: [lat, lng], label?: string, color?: string, pin?: boolean }>
+ *   paths?: Array<{ coordinates: [lat, lng][], color?: string, width?: number, dashed?: boolean }>
  *   height?: string        — CSS height (default: "400px")
  *   pitch?: number         — 3D tilt angle in degrees (default: 0)
  *   bearing?: number       — rotation in degrees (default: 0)
@@ -42,7 +43,8 @@ export const mapPlugin: WidgetPlugin = {
   hydrate: (container, spec, theme) => {
     const center: [number, number] = spec.center || [0, 0]
     const zoom = spec.zoom ?? 2
-    const markers: Array<{ location: [number, number]; label?: string; color?: string }> = spec.markers || []
+    const markers: Array<{ location: [number, number]; label?: string; color?: string; pin?: boolean }> = spec.markers || []
+    const paths: Array<{ coordinates: [number, number][]; color?: string; width?: number; dashed?: boolean }> = spec.paths || []
     const height = spec.height || "400px"
 
     loadMaplibreCSS()
@@ -84,22 +86,38 @@ export const mapPlugin: WidgetPlugin = {
 
         // Add markers
         for (const m of markers) {
+          const color = m.color || "#C15F3C"
           const el = document.createElement("div")
-          el.style.width = "14px"
-          el.style.height = "14px"
-          el.style.borderRadius = "50%"
-          el.style.backgroundColor = m.color || "#C15F3C"
-          el.style.border = "2px solid white"
-          el.style.boxShadow = "0 1px 4px rgba(0,0,0,0.3)"
-          el.style.cursor = "pointer"
 
-          const marker = new maplibregl.Marker({ element: el })
+          if (m.pin) {
+            // Teardrop pin style (like Google Maps)
+            el.innerHTML = `<svg width="27" height="40" viewBox="0 0 27 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.5 0C6.04 0 0 6.04 0 13.5C0 23.62 13.5 40 13.5 40S27 23.62 27 13.5C27 6.04 20.96 0 13.5 0Z" fill="${color}"/>
+              <circle cx="13.5" cy="13.5" r="5.5" fill="white"/>
+            </svg>`
+            el.style.cursor = "pointer"
+            el.style.filter = "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
+          } else {
+            // Default dot style
+            el.style.width = "14px"
+            el.style.height = "14px"
+            el.style.borderRadius = "50%"
+            el.style.backgroundColor = color
+            el.style.border = "2px solid white"
+            el.style.boxShadow = "0 1px 4px rgba(0,0,0,0.3)"
+            el.style.cursor = "pointer"
+          }
+
+          const marker = new maplibregl.Marker({
+            element: el,
+            anchor: m.pin ? "bottom" : "center",
+          })
             .setLngLat([m.location[1], m.location[0]]) // [lng, lat]
             .addTo(mapInstance)
 
           if (m.label) {
             const popup = new maplibregl.Popup({
-              offset: 12,
+              offset: m.pin ? 30 : 12,
               closeButton: false,
               className: "koen-map-popup",
             })
@@ -111,15 +129,52 @@ export const mapPlugin: WidgetPlugin = {
           }
         }
 
+        // Add paths (lines between points)
+        if (paths.length > 0) {
+          mapInstance.on("load", () => {
+            if (disposed) return
+            for (let i = 0; i < paths.length; i++) {
+              const p = paths[i]
+              const id = `path-${i}`
+              mapInstance.addSource(id, {
+                type: "geojson",
+                data: {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: p.coordinates.map((c: [number, number]) => [c[1], c[0]]), // [lng, lat]
+                  },
+                },
+              })
+              mapInstance.addLayer({
+                id,
+                type: "line",
+                source: id,
+                layout: { "line-join": "round", "line-cap": "round" },
+                paint: {
+                  "line-color": p.color || "#C15F3C",
+                  "line-width": p.width || 2,
+                  ...(p.dashed ? { "line-dasharray": [2, 2] } : {}),
+                },
+              })
+            }
+          })
+        }
+
         // Only auto-fit if no explicit center was provided
-        if (!spec.center && markers.length > 1) {
+        const allPoints = [
+          ...markers.map(m => m.location),
+          ...paths.flatMap(p => p.coordinates),
+        ]
+        if (!spec.center && allPoints.length > 1) {
           const bounds = new maplibregl.LngLatBounds()
-          for (const m of markers) {
-            bounds.extend([m.location[1], m.location[0]])
+          for (const pt of allPoints) {
+            bounds.extend([pt[1], pt[0]])
           }
           mapInstance.fitBounds(bounds, { padding: 50, maxZoom: 12, animate: false })
-        } else if (!spec.center && markers.length === 1) {
-          mapInstance.setCenter([markers[0].location[1], markers[0].location[0]])
+        } else if (!spec.center && allPoints.length === 1) {
+          mapInstance.setCenter([allPoints[0][1], allPoints[0][0]])
           mapInstance.setZoom(zoom || 10)
         }
       })
