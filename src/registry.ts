@@ -15,6 +15,7 @@ import { excalidrawPlugin } from "./widgets/ExcalidrawWidget"
 import { mapPlugin } from "./widgets/MapWidget"
 import { timelinePlugin } from "./widgets/TimelineWidget"
 import { calendarPlugin } from "./widgets/CalendarWidget"
+import { attachmentPlugin } from "./widgets/AttachmentWidget"
 
 // ─── Per-instance registry helpers ──────────────────────────
 
@@ -45,7 +46,7 @@ export function buildLangMap(plugins: WidgetPlugin[]): Map<string, WidgetPlugin>
 
 // ─── Default built-in widgets ───────────────────────────────
 
-const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin]
+const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin, attachmentPlugin]
 
 export function getDefaultWidgets(): WidgetPlugin[] {
   return _defaults
