@@ -75,10 +75,12 @@ export const mapPlugin: WidgetPlugin = {
           zoom,
           pitch: spec.pitch || 0,
           bearing: spec.bearing || 0,
-          attributionControl: true,
+          attributionControl: false,
           fadeDuration: 0,
           renderWorldCopies: false,
         })
+
+        mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right")
 
         if (spec.controls) {
           mapInstance.addControl(new maplibregl.NavigationControl(), "top-left")
