@@ -8,8 +8,6 @@ import type { WidgetPlugin, WidgetHydrator, WidgetSpec } from "./types"
 import { addExpandButton } from "./expandOverlay"
 import { chartPlugin } from "./widgets/ChartWidget"
 import { mermaidPlugin } from "./widgets/MermaidWidget"
-import { diffPlugin } from "./widgets/DiffWidget"
-import { globePlugin } from "./widgets/GlobeWidget"
 import { katexPlugin } from "./widgets/KatexWidget"
 import { tablePlugin } from "./widgets/TableWidget"
 import { embedPlugin } from "./widgets/EmbedWidget"
@@ -17,7 +15,6 @@ import { excalidrawPlugin } from "./widgets/ExcalidrawWidget"
 import { mapPlugin } from "./widgets/MapWidget"
 import { timelinePlugin } from "./widgets/TimelineWidget"
 import { calendarPlugin } from "./widgets/CalendarWidget"
-import { htmlPlugin } from "./widgets/HtmlWidget"
 
 // ─── Per-instance registry helpers ──────────────────────────
 
@@ -48,7 +45,7 @@ export function buildLangMap(plugins: WidgetPlugin[]): Map<string, WidgetPlugin>
 
 // ─── Default built-in widgets ───────────────────────────────
 
-const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, diffPlugin, globePlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin, htmlPlugin]
+const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin]
 
 export function getDefaultWidgets(): WidgetPlugin[] {
   return _defaults
