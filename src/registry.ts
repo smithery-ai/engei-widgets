@@ -143,8 +143,10 @@ export function hydrateWidgets(
         if (cleanup) cleanups.push(cleanup)
 
         // Add expand-to-fullscreen button
-        const expandCleanup = addExpandButton(el, spec, hydrator, theme)
-        cleanups.push(expandCleanup)
+        if (spec.type !== "attachment") {
+          const expandCleanup = addExpandButton(el, spec, hydrator, theme)
+          cleanups.push(expandCleanup)
+        }
       } else {
         renderWidgetError(el, spec.type, `Unknown widget type: ${spec.type}`, theme)
       }
