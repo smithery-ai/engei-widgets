@@ -22,9 +22,9 @@ import { loadCDN } from "../utils"
 const MAPLIBRE_JS_CDN = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"
 const MAPLIBRE_CSS_CDN = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"
 
-// CARTO free vector basemaps — no API key required
-const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+// OpenFreeMap — free hosted OpenMapTiles, no API key
+const DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
+const LIGHT_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
 let cssLoaded = false
 
