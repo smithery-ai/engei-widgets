@@ -1,17 +1,14 @@
 /**
- * Map widget plugin — renders interactive vector maps using MapLibre GL.
- * Loads MapLibre GL (~200kB) from CDN on first use.
- * Uses CARTO free vector tile styles (no API key needed).
+ * Map widget plugin — renders interactive maps using Leaflet.
+ * Loads Leaflet (~40kB) from CDN on first use.
+ * Uses OpenFreeMap tiles (no API key needed).
  *
  * Spec fields:
  *   center?: [lat, lng]    — map center (default: [0, 0])
  *   zoom?: number          — zoom level (default: 2)
- *   markers?: Array<{ location: [lat, lng], label?: string, color?: string, pin?: boolean }>
+ *   markers?: Array<{ location: [lat, lng], label?: string, color?: string }>
  *   paths?: Array<{ coordinates: [lat, lng][], color?: string, width?: number, dashed?: boolean }>
  *   height?: string        — CSS height (default: "400px")
- *   pitch?: number         — 3D tilt angle in degrees (default: 0)
- *   bearing?: number       — rotation in degrees (default: 0)
- *   style?: string         — custom MapLibre style URL
  *
  * Code block lang: `map`
  */
@@ -19,21 +16,19 @@
 import type { WidgetPlugin } from "../types"
 import { loadCDN } from "../utils"
 
-const MAPLIBRE_JS_CDN = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"
-const MAPLIBRE_CSS_CDN = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css"
-
-// OpenFreeMap — free hosted OpenMapTiles, no API key
-const DARK_STYLE = "https://tiles.openfreemap.org/styles/dark"
-const LIGHT_STYLE = "https://tiles.openfreemap.org/styles/bright"
+const LEAFLET_JS = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+const LEAFLET_CSS = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
 
 let cssLoaded = false
 
-function loadMaplibreCSS() {
+function loadLeafletCSS() {
   if (cssLoaded) return
   cssLoaded = true
   const link = document.createElement("link")
   link.rel = "stylesheet"
-  link.href = MAPLIBRE_CSS_CDN
+  link.href = LEAFLET_CSS
   document.head.appendChild(link)
 }
 
@@ -43,11 +38,11 @@ export const mapPlugin: WidgetPlugin = {
   hydrate: (container, spec, theme) => {
     const center: [number, number] = spec.center || [0, 0]
     const zoom = spec.zoom ?? 2
-    const markers: Array<{ location: [number, number]; label?: string; color?: string; pin?: boolean }> = spec.markers || []
+    const markers: Array<{ location: [number, number]; label?: string; color?: string }> = spec.markers || []
     const paths: Array<{ coordinates: [number, number][]; color?: string; width?: number; dashed?: boolean }> = spec.paths || []
     const height = spec.height || "400px"
 
-    loadMaplibreCSS()
+    loadLeafletCSS()
 
     const wrapper = document.createElement("div")
     wrapper.style.margin = "1em 0"
@@ -61,128 +56,68 @@ export const mapPlugin: WidgetPlugin = {
     let mapInstance: any = null
     let disposed = false
 
-    loadCDN(MAPLIBRE_JS_CDN, "maplibregl")
+    loadCDN(LEAFLET_JS, "L")
       .then(() => {
         if (disposed) return
-        const maplibregl = (window as any).maplibregl
+        const L = (window as any).L
 
-        const style = spec.style || LIGHT_STYLE
-
-        mapInstance = new maplibregl.Map({
-          container: wrapper,
-          style,
-          center: [center[1], center[0]], // MapLibre uses [lng, lat]
+        mapInstance = L.map(wrapper, {
+          center: [center[0], center[1]],
           zoom,
-          pitch: spec.pitch || 0,
-          bearing: spec.bearing || 0,
-          attributionControl: false,
-          fadeDuration: 0,
-          renderWorldCopies: false,
+          attributionControl: true,
+          zoomControl: true,
         })
 
-        mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right")
+        // Tile layer — CARTO light (raster, fast, free)
+        L.tileLayer(TILE_URL, {
+          attribution: TILE_ATTR,
+          maxZoom: 19,
+        }).addTo(mapInstance)
 
-        if (spec.controls) {
-          mapInstance.addControl(new maplibregl.NavigationControl(), "top-left")
-        }
-
-        // Add markers
+        // Markers
         for (const m of markers) {
           const color = m.color || "#C15F3C"
-          const el = document.createElement("div")
 
-          if (m.pin) {
-            // Teardrop pin style (like Google Maps)
-            el.innerHTML = `<svg width="27" height="40" viewBox="0 0 27 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13.5 0C6.04 0 0 6.04 0 13.5C0 23.62 13.5 40 13.5 40S27 23.62 27 13.5C27 6.04 20.96 0 13.5 0Z" fill="${color}"/>
-              <circle cx="13.5" cy="13.5" r="5.5" fill="white"/>
-            </svg>`
-            el.style.cursor = "pointer"
-            el.style.filter = "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
-          } else {
-            // Default dot style
-            el.style.width = "14px"
-            el.style.height = "14px"
-            el.style.borderRadius = "50%"
-            el.style.backgroundColor = color
-            el.style.border = "2px solid white"
-            el.style.boxShadow = "0 1px 4px rgba(0,0,0,0.3)"
-            el.style.cursor = "pointer"
-          }
-
-          const marker = new maplibregl.Marker({
-            element: el,
-            anchor: m.pin ? "bottom" : "center",
-          })
-            .setLngLat([m.location[1], m.location[0]]) // [lng, lat]
-            .addTo(mapInstance)
+          // Custom colored circle marker
+          const marker = L.circleMarker([m.location[0], m.location[1]], {
+            radius: 7,
+            fillColor: color,
+            color: "#fff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 1,
+          }).addTo(mapInstance)
 
           if (m.label) {
-            const popup = new maplibregl.Popup({
-              offset: m.pin ? 30 : 12,
-              closeButton: false,
-              className: "koen-map-popup",
-            })
-            const labelEl = document.createElement("div")
-            labelEl.style.cssText = "font-size:13px;padding:2px 4px"
-            labelEl.textContent = m.label
-            popup.setDOMContent(labelEl)
-            marker.setPopup(popup)
+            marker.bindPopup(`<div style="font-size:13px;padding:2px 4px">${m.label}</div>`)
           }
         }
 
-        // Add paths (lines between points)
-        if (paths.length > 0) {
-          mapInstance.on("load", () => {
-            if (disposed) return
-            for (let i = 0; i < paths.length; i++) {
-              const p = paths[i]
-              const id = `path-${i}`
-              mapInstance.addSource(id, {
-                type: "geojson",
-                data: {
-                  type: "Feature",
-                  properties: {},
-                  geometry: {
-                    type: "LineString",
-                    coordinates: p.coordinates.map((c: [number, number]) => [c[1], c[0]]), // [lng, lat]
-                  },
-                },
-              })
-              mapInstance.addLayer({
-                id,
-                type: "line",
-                source: id,
-                layout: { "line-join": "round", "line-cap": "round" },
-                paint: {
-                  "line-color": p.color || "#C15F3C",
-                  "line-width": p.width || 2,
-                  ...(p.dashed ? { "line-dasharray": [2, 2] } : {}),
-                },
-              })
-            }
-          })
+        // Paths
+        for (const p of paths) {
+          const latlngs = p.coordinates.map((c: [number, number]) => [c[0], c[1]])
+          L.polyline(latlngs, {
+            color: p.color || "#C15F3C",
+            weight: p.width || 2,
+            dashArray: p.dashed ? "6 6" : undefined,
+          }).addTo(mapInstance)
         }
 
-        // Only auto-fit if no explicit center was provided
+        // Auto-fit bounds
         const allPoints = [
           ...markers.map(m => m.location),
           ...paths.flatMap(p => p.coordinates),
         ]
         if (!spec.center && allPoints.length > 1) {
-          const bounds = new maplibregl.LngLatBounds()
-          for (const pt of allPoints) {
-            bounds.extend([pt[1], pt[0]])
-          }
-          mapInstance.fitBounds(bounds, { padding: 50, maxZoom: 12, animate: false })
+          const bounds = L.latLngBounds(allPoints.map((p: [number, number]) => [p[0], p[1]]))
+          mapInstance.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 })
         } else if (!spec.center && allPoints.length === 1) {
-          mapInstance.setCenter([allPoints[0][1], allPoints[0][0]])
-          mapInstance.setZoom(zoom || 10)
+          mapInstance.setView([allPoints[0][0], allPoints[0][1]], zoom || 10)
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         if (disposed) return
-        container.textContent = `Failed to load MapLibre GL: ${err.message}`
+        container.textContent = `Failed to load Leaflet: ${err.message}`
       })
 
     return () => {
