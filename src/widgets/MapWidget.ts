@@ -66,7 +66,7 @@ export const mapPlugin: WidgetPlugin = {
         if (disposed) return
         const maplibregl = (window as any).maplibregl
 
-        const style = spec.style || (theme === "dark" ? DARK_STYLE : LIGHT_STYLE)
+        const style = spec.style || LIGHT_STYLE
 
         mapInstance = new maplibregl.Map({
           container: wrapper,
