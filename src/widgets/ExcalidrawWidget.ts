@@ -30,6 +30,39 @@ function loadRough(): Promise<any> {
 
 export const excalidrawPlugin: WidgetPlugin = {
   type: "excalidraw",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      width: { type: "number", description: "SVG width (default: 600)" },
+      height: { type: "number", description: "SVG height (default: 300)" },
+      elements: {
+        type: "array",
+        description: "Drawing elements",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["rect", "ellipse", "line", "arrow", "text"] },
+            x: { type: "number" },
+            y: { type: "number" },
+            x1: { type: "number" },
+            y1: { type: "number" },
+            x2: { type: "number" },
+            y2: { type: "number" },
+            width: { type: "number" },
+            height: { type: "number" },
+            color: { type: "string" },
+            fill: { type: "string" },
+            label: { type: "string" },
+            text: { type: "string" },
+            fontSize: { type: "number" },
+          },
+          required: ["type"],
+        },
+      },
+    },
+    required: ["elements"],
+  },
   codeBlockLang: "sketch",
   hydrate: (container, spec, theme) => {
     const elements = spec.elements

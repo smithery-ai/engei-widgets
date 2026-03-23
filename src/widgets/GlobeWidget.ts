@@ -21,6 +21,29 @@ function loadCobe(): Promise<any> {
 
 export const globePlugin: WidgetPlugin = {
   type: "globe",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      size: { type: "number", description: "Canvas size in pixels (default: 600)" },
+      phi: { type: "number", description: "Initial rotation angle (default: 0)" },
+      theta: { type: "number", description: "Tilt angle (default: 0.2)" },
+      rotateSpeed: { type: "number", description: "Rotation speed per frame (default: 0.005)" },
+      markerColor: { type: "array", items: { type: "number" }, description: "RGB marker color [r, g, b]" },
+      markers: {
+        type: "array",
+        description: "Array of map markers",
+        items: {
+          type: "object",
+          properties: {
+            location: { type: "array", items: { type: "number" }, description: "[lat, lng]" },
+            size: { type: "number", description: "Marker size (default: 0.05)" },
+          },
+          required: ["location"],
+        },
+      },
+    },
+  },
   codeBlockLang: "globe",
   hydrate: (container, spec, theme) => {
     const wrapper = document.createElement("div")

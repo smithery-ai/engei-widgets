@@ -14,8 +14,19 @@ import type { WidgetPlugin } from "../types"
 
 export const htmlPlugin: WidgetPlugin = {
   type: "html",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      html: { type: "string", description: "Raw HTML/CSS/SVG content (scripts are stripped)" },
+    },
+    required: ["html"],
+  },
   codeBlockLang: "html",
-  toSpec: (text: string) => ({ html: text }),
+  toSpec: (text: string) => {
+    try { return JSON.parse(text) } catch { /* fall back to raw HTML */ }
+    return { html: text }
+  },
   hydrate: (container, spec, theme) => {
     const raw = spec.html as string
     if (!raw) {

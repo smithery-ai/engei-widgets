@@ -32,6 +32,16 @@ function fileIconSvg(color: string): string {
 
 export const attachmentPlugin: WidgetPlugin = {
   type: "attachment",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      url: { type: "string", description: "Path or URL to the file" },
+      title: { type: "string", description: "Display name (default: filename from url)" },
+      size: { type: "string", description: "Human-readable file size (e.g. \"2.4 MB\")" },
+    },
+    required: ["url"],
+  },
   codeBlockLang: "attachment",
   hydrate: (container, spec, theme) => {
     const url: string = spec.url

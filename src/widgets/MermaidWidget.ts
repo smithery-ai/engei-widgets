@@ -59,8 +59,19 @@ function fixSvgTextContrast(wrapper: HTMLElement) {
 
 export const mermaidPlugin: WidgetPlugin = {
   type: "mermaid",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      diagram: { type: "string", description: "Mermaid diagram source text" },
+    },
+    required: ["diagram"],
+  },
   codeBlockLang: "mermaid",
-  toSpec: (text) => ({ diagram: text }),
+  toSpec: (text) => {
+    try { return JSON.parse(text) } catch { /* fall back to raw diagram text */ }
+    return { diagram: text }
+  },
   hydrate: (container, spec, theme) => {
     const diagram = spec.diagram
     if (!diagram) {

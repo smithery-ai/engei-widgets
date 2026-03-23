@@ -14,7 +14,7 @@ import type { WidgetPlugin } from "../types"
 
 const ALLOWED_DOMAINS = [
   // Video
-  "youtube.com", "www.youtube.com", "youtube-nocookie.com",
+  "youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com",
   "player.vimeo.com", "vimeo.com",
   "loom.com", "www.loom.com",
   // Design
@@ -77,8 +77,18 @@ function toEmbedUrl(url: string): string {
 
 export const embedPlugin: WidgetPlugin = {
   type: "embed",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      url: { type: "string", description: "URL to embed" },
+      width: { type: "string", description: "CSS width (default: \"100%\")" },
+      height: { type: "string", description: "CSS height (default: \"400px\")" },
+      aspectRatio: { type: "string", description: "CSS aspect-ratio (overrides height)" },
+    },
+    required: ["url"],
+  },
   codeBlockLang: "embed",
-  toSpec: (text) => ({ url: text.trim() }),
   hydrate: (container, spec, theme) => {
     const rawUrl = spec.url
     if (!rawUrl) {

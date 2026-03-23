@@ -37,11 +37,23 @@ const PALETTE = [
 
 export const chartPlugin: WidgetPlugin = {
   type: "chart",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      type: { type: "string", description: "Chart type", enum: ["bar", "line", "pie", "doughnut", "radar", "polarArea"] },
+      data: { type: "object", description: "Chart.js data object with labels and datasets" },
+      options: { type: "object", description: "Chart.js options" },
+      config: { type: "object", description: "Legacy wrapper: { type, data, options }" },
+    },
+    required: ["type", "data"],
+  },
   codeBlockLang: "chart",
   hydrate: (container, spec, theme) => {
-    const config = spec.config
-    if (!config) {
-      container.textContent = "Chart widget missing 'config'"
+    // Accept spec directly (e.g. { type, data }) or legacy { config: { type, data } }
+    const config = spec.config || spec
+    if (!config.type && !config.data) {
+      container.textContent = "Chart widget: needs 'type' and 'data'"
       return
     }
 

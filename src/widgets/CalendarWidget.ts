@@ -19,7 +19,7 @@
  */
 
 import type { WidgetPlugin } from "../types"
-import { escapeHtml } from "../utils"
+// escapeHtml available from "../utils" if needed
 
 interface CalendarEvent {
   start: string
@@ -30,7 +30,7 @@ interface CalendarEvent {
   color?: string
 }
 
-const DEFAULT_COLORS = ["#6a8ac0", "#7aa874", "#c4a050", "#C15F3C", "#a070b0", "#50a0a0"]
+const DEFAULT_COLORS = ["#527da5", "#6a9f5b", "#c4903c", "#C15F3C", "#9566a0", "#3d9090"]
 const DAY_NAMES_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 const DAY_NAMES_LONG = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 
@@ -72,8 +72,8 @@ function renderMonthView(container: HTMLElement, spec: any, events: CalendarEven
   const isDark = theme === "dark"
   const textColor = isDark ? "#e8e6e3" : "#37352f"
   const mutedColor = isDark ? "#5a5550" : "#a0a0a0"
-  const borderColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"
-  const todayBg = isDark ? "rgba(193,95,60,0.06)" : "rgba(193,95,60,0.04)"
+  const outsideColor = isDark ? "#3a3835" : "#c7c7c7"
+  const borderColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(55,53,47,0.14)"
 
   let year: number, month: number
   if (spec.month) {
@@ -88,107 +88,113 @@ function renderMonthView(container: HTMLElement, spec: any, events: CalendarEven
   const lastDay = new Date(year, month + 1, 0)
   const startDow = firstDay.getDay()
   const daysInMonth = lastDay.getDate()
+  const totalCells = startDow + daysInMonth
+  const totalWeeks = Math.ceil(totalCells / 7)
+  const gridCells = totalWeeks * 7
 
   const coloredEvents = events.map((e, i) => ({
     ...e, color: e.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length],
     startDate: parseDate(e.start), endDate: parseDate(e.end),
   }))
 
-  const dayEvents = new Map<string, typeof coloredEvents>()
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(year, month, d)
+  // Build event lookup for the full grid range (including overflow days)
+  const gridStart = new Date(year, month, 1 - startDow)
+  const allDayEvents = new Map<string, typeof coloredEvents>()
+  for (let i = 0; i < gridCells; i++) {
+    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
     const key = fmtDate(date)
     const active = coloredEvents.filter(e => date >= e.startDate && date <= e.endDate)
-    if (active.length > 0) dayEvents.set(key, active)
+    if (active.length > 0) allDayEvents.set(key, active)
   }
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
   const wrapper = document.createElement("div")
   wrapper.style.cssText = "margin:1em 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"
 
-  // ── Column headers (matches week view style) ──
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+  // ── Month header (Notion-style: bold, left-aligned) ──
+  const monthHeader = document.createElement("div")
+  monthHeader.style.cssText = `font-size:1em;font-weight:700;color:${textColor};margin-bottom:12px;padding-left:2px`
+  monthHeader.textContent = `${monthNames[month]} ${year}`
+  wrapper.appendChild(monthHeader)
+
+  // ── Day-of-week headers ──
   const headerRow = document.createElement("div")
-  headerRow.style.cssText = "display:grid;grid-template-columns:repeat(7,1fr);gap:0;margin-bottom:4px"
+  headerRow.style.cssText = `display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid ${borderColor}`
 
   for (let i = 0; i < 7; i++) {
     const col = document.createElement("div")
-    col.style.cssText = "text-align:center;padding:8px 0 6px"
-    const dayLabel = document.createElement("div")
-    dayLabel.style.cssText = `font-size:0.7em;font-weight:600;color:${mutedColor};letter-spacing:0.5px`
-    dayLabel.textContent = DAY_NAMES_LONG[i]
-    col.appendChild(dayLabel)
+    col.style.cssText = `text-align:left;padding:0 8px 6px;font-size:0.7em;font-weight:500;color:${mutedColor};letter-spacing:0.03em`
+    col.textContent = DAY_NAMES_SHORT[i]
     headerRow.appendChild(col)
   }
   wrapper.appendChild(headerRow)
 
-  // Month + year label (subtle, top-left)
-  const monthLabel = document.createElement("div")
-  monthLabel.style.cssText = `font-size:0.8em;font-weight:600;color:${mutedColor};margin-bottom:6px;padding-left:2px`
-  monthLabel.textContent = `${monthNames[month]} ${year}`
-  wrapper.insertBefore(monthLabel, headerRow)
-
   // ── Grid ──
   const grid = document.createElement("div")
-  grid.style.cssText = `display:grid;grid-template-columns:repeat(7,1fr);border-radius:8px;overflow:hidden;border:1px solid ${borderColor}`
+  grid.style.cssText = `display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid ${borderColor}`
 
   const today = new Date()
-  const ROW_HEIGHT = 72
+  const ROW_HEIGHT = 80
 
-  // Empty leading cells
-  for (let i = 0; i < startDow; i++) {
-    const cell = document.createElement("div")
-    cell.style.cssText = `height:${ROW_HEIGHT}px;border-bottom:1px solid ${borderColor};${i < 6 ? `border-right:1px solid ${borderColor}` : ""}`
-    grid.appendChild(cell)
-  }
-
-  // Day cells
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(year, month, d)
+  for (let i = 0; i < gridCells; i++) {
+    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i)
     const key = fmtDate(date)
-    const dow = (startDow + d - 1) % 7
+    const dow = i % 7
+    const weekRow = Math.floor(i / 7)
+    const isCurrentMonth = date.getMonth() === month
     const isToday = sameDay(date, today)
-    const evts = dayEvents.get(key) || []
-    const weekRow = Math.floor((startDow + d - 1) / 7)
-    const totalWeeks = Math.ceil((startDow + daysInMonth) / 7)
+    const evts = allDayEvents.get(key) || []
     const isLastRow = weekRow === totalWeeks - 1
 
+    const isWeekend = dow === 0 || dow === 6
+    const weekendBg = isDark ? "rgba(255,255,255,0.02)" : "rgba(55,53,47,0.024)"
+
     const cell = document.createElement("div")
-    cell.style.cssText = `height:${ROW_HEIGHT}px;padding:5px 6px;position:relative;overflow:hidden;${isToday ? `background:${todayBg}` : ""};${!isLastRow ? `border-bottom:1px solid ${borderColor};` : ""}${dow < 6 ? `border-right:1px solid ${borderColor};` : ""}`
+    cell.style.cssText = `min-height:${ROW_HEIGHT}px;padding:6px 8px;position:relative;overflow:hidden;${isWeekend ? `background:${weekendBg};` : ""}${!isLastRow ? `border-bottom:1px solid ${borderColor};` : ""}${dow < 6 ? `border-right:1px solid ${borderColor};` : ""}`
 
     // Day number
     const num = document.createElement("div")
+    num.style.cssText = "margin-bottom:4px;line-height:1"
     if (isToday) {
-      // Circle highlight for today
-      num.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#C15F3C;color:white;font-size:0.75em;font-weight:700;margin-bottom:3px"
+      const circle = document.createElement("span")
+      circle.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#EB5757;color:white;font-size:0.8em;font-weight:600"
+      circle.textContent = String(date.getDate())
+      num.appendChild(circle)
     } else {
-      num.style.cssText = `font-size:0.75em;color:${evts.length > 0 ? textColor : mutedColor};font-weight:${evts.length > 0 ? "600" : "400"};margin-bottom:3px;padding:2px 0`
+      const label = document.createElement("span")
+      label.style.cssText = `font-size:0.8em;color:${isCurrentMonth ? textColor : outsideColor};font-weight:400;padding:3px 0;display:inline-block`
+      label.textContent = String(date.getDate())
+      num.appendChild(label)
     }
-    num.textContent = String(d)
     cell.appendChild(num)
 
-    // Event pills
+    // Event chips (Notion-style: compact rounded pills, no left border accent)
     const maxVisible = 2
-    for (let i = 0; i < Math.min(evts.length, maxVisible); i++) {
-      const evt = evts[i]
+    for (let j = 0; j < Math.min(evts.length, maxVisible); j++) {
+      const evt = evts[j]
       const isStart = sameDay(date, evt.startDate)
       const isEnd = sameDay(date, evt.endDate)
-      const pill = document.createElement("div")
-      pill.title = evt.title
+      const isSingleDay = isStart && isEnd
 
-      if (isStart) {
-        // Labeled pill on start day
-        pill.style.cssText = `background:${evt.color};border-radius:4px;padding:2px 6px;font-size:0.65em;font-weight:500;color:white;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid color-mix(in srgb, ${evt.color}, black 20%)`
-        pill.textContent = evt.title
+      const chip = document.createElement("div")
+      chip.title = evt.title
+
+      if (isStart || isSingleDay) {
+        // Notion-style chip: colored bg, small rounded corners, compact
+        chip.style.cssText = `background:${evt.color};border-radius:3px;padding:1px 6px;font-size:0.7em;font-weight:500;color:white;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5`
+        chip.textContent = evt.title
       } else {
-        // Continuation bar
-        pill.style.cssText = `background:${evt.color};opacity:0.7;height:6px;margin-bottom:2px;${isEnd ? "border-radius:0 3px 3px 0" : "border-radius:0"}`
+        // Continuation bar for multi-day events
+        const opacity = isDark ? "0.6" : "0.5"
+        chip.style.cssText = `background:${evt.color};opacity:${opacity};height:5px;margin:3px 0 2px;${isEnd ? "border-radius:0 3px 3px 0" : "border-radius:0"}`
       }
-      cell.appendChild(pill)
+      cell.appendChild(chip)
     }
 
     if (evts.length > maxVisible) {
       const more = document.createElement("div")
-      more.style.cssText = `font-size:0.6em;color:${mutedColor};margin-top:1px`
+      more.style.cssText = `font-size:0.65em;color:${mutedColor};margin-top:2px;cursor:default`
       more.textContent = `+${evts.length - maxVisible} more`
       cell.appendChild(more)
     }
@@ -196,37 +202,7 @@ function renderMonthView(container: HTMLElement, spec: any, events: CalendarEven
     grid.appendChild(cell)
   }
 
-  // Trailing empty cells
-  const totalCells = startDow + daysInMonth
-  const remainder = totalCells % 7
-  if (remainder > 0) {
-    for (let i = 0; i < 7 - remainder; i++) {
-      const cell = document.createElement("div")
-      cell.style.cssText = `height:${ROW_HEIGHT}px;${i < 6 - remainder ? `border-right:1px solid ${borderColor}` : ""}`
-      grid.appendChild(cell)
-    }
-  }
-
   wrapper.appendChild(grid)
-
-  // Legend (only for 2+ events)
-  if (coloredEvents.length > 1) {
-    const legend = document.createElement("div")
-    legend.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.75em"
-    for (const evt of coloredEvents) {
-      const item = document.createElement("div")
-      item.style.cssText = "display:flex;align-items:center;gap:4px"
-      const dot = document.createElement("div")
-      dot.style.cssText = `width:8px;height:8px;border-radius:2px;background:${evt.color};flex-shrink:0`
-      item.appendChild(dot)
-      const label = document.createElement("span")
-      label.style.color = mutedColor
-      label.innerHTML = escapeHtml(evt.title)
-      item.appendChild(label)
-      legend.appendChild(item)
-    }
-    wrapper.appendChild(legend)
-  }
 
   container.innerHTML = ""
   container.appendChild(wrapper)
@@ -329,7 +305,6 @@ function renderWeekView(container: HTMLElement, spec: any, events: CalendarEvent
 
   // ── All-day events banner ──
   const dayAllDay = days.map(d => {
-    const key = fmtDate(d)
     return allDayEvents.filter(e => {
       const s = parseDate(e.start)
       const en = parseDate(e.end)
@@ -461,6 +436,32 @@ function renderWeekView(container: HTMLElement, spec: any, events: CalendarEvent
 
 export const calendarPlugin: WidgetPlugin = {
   type: "calendar",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      view: { type: "string", enum: ["month", "week"], description: "Display mode" },
+      month: { type: "string", description: "YYYY-MM for month view" },
+      week: { type: "string", description: "YYYY-MM-DD start date for week view" },
+      events: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            start: { type: "string", description: "YYYY-MM-DD" },
+            end: { type: "string", description: "YYYY-MM-DD" },
+            startTime: { type: "string", description: "HH:MM for timed events in week view" },
+            endTime: { type: "string", description: "HH:MM for timed events in week view" },
+            title: { type: "string" },
+            color: { type: "string" },
+          },
+          required: ["start", "end", "title"],
+        },
+      },
+      height: { type: "string", description: "Max visible height for week view" },
+    },
+    required: ["events"],
+  },
   codeBlockLang: "calendar",
   hydrate: (container, spec, theme) => {
     const events: CalendarEvent[] = spec.events

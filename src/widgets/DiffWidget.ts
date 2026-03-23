@@ -62,6 +62,17 @@ function splitHighlightedLines(html: string): string[] {
 
 export const diffPlugin: WidgetPlugin = {
   type: "diff",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      old: { type: "string", description: "Original text" },
+      new: { type: "string", description: "Modified text" },
+      language: { type: "string", description: "Language for syntax highlighting" },
+      filename: { type: "string", description: "Optional filename shown in header" },
+    },
+    required: ["old", "new"],
+  },
   codeBlockLang: "diff",
   // diff code blocks contain JSON — default toSpec (JSON.parse) works
   hydrate: (container, spec, _theme) => {

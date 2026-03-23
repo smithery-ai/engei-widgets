@@ -3,7 +3,7 @@
  * Loads KaTeX (~200kB) from CDN on first use.
  *
  * Supports both inline and display (block) math via the `display` spec field.
- * Code block lang: `math` or `latex`
+ * Code block lang: `katex` (aliases: `math`, `latex`)
  */
 
 import type { WidgetPlugin } from "../types"
@@ -25,8 +25,20 @@ function loadKatexCSS() {
 
 export const katexPlugin: WidgetPlugin = {
   type: "katex",
-  codeBlockLang: "math",
-  toSpec: (text) => ({ expression: text.trim(), display: true }),
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      expression: { type: "string", description: "LaTeX math expression" },
+      display: { type: "boolean", description: "Display (block) mode vs inline" },
+    },
+    required: ["expression"],
+  },
+  codeBlockLang: "katex",
+  toSpec: (text) => {
+    try { return JSON.parse(text) } catch { /* fall back to raw LaTeX */ }
+    return { expression: text.trim(), display: true }
+  },
   hydrate: (container, spec, theme) => {
     const expression = spec.expression
     if (!expression) {

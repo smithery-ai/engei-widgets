@@ -36,6 +36,17 @@ function getCellValue(row: any, col: string, colIdx: number): any {
 
 export const tablePlugin: WidgetPlugin = {
   type: "table",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      columns: { type: "array", items: { type: "string" }, description: "Header labels (inferred from data keys if omitted)" },
+      rows: { type: "array", description: "Array of objects or arrays" },
+      sortable: { type: "boolean", description: "Enable click-to-sort headers" },
+      caption: { type: "string", description: "Table caption" },
+    },
+    required: ["rows"],
+  },
   codeBlockLang: "table",
   hydrate: (container, spec, theme) => {
     const s = spec as TableSpec
