@@ -1,6 +1,14 @@
 /**
  * Widget registry — maps widget types to hydration functions.
  * Supports per-instance registries via buildWidgetRegistry().
+ *
+ * Built-in widgets (13):
+ *   JSON-only:  chart, map, calendar, timeline, table, diff, embed,
+ *               sketch, globe, attachment
+ *   Text+JSON:  mermaid, katex, html (accept raw text or JSON via toSpec)
+ *
+ * To add a custom widget, create a WidgetPlugin and pass it:
+ *   [...getDefaultWidgets(), myPlugin]
  */
 
 import type { WidgetPlugin, WidgetHydrator, WidgetSpec } from "./types"
@@ -16,6 +24,9 @@ import { mapPlugin } from "./widgets/MapWidget"
 import { timelinePlugin } from "./widgets/TimelineWidget"
 import { calendarPlugin } from "./widgets/CalendarWidget"
 import { attachmentPlugin } from "./widgets/AttachmentWidget"
+import { diffPlugin } from "./widgets/DiffWidget"
+import { htmlPlugin } from "./widgets/HtmlWidget"
+import { globePlugin } from "./widgets/GlobeWidget"
 
 // ─── Per-instance registry helpers ──────────────────────────
 
@@ -26,8 +37,8 @@ export function buildWidgetRegistry(plugins: WidgetPlugin[]): Map<string, Widget
 
 // Aliases: alternative code block lang names that map to the same plugin
 const LANG_ALIASES: Record<string, string> = {
-  katex: "math",
-  latex: "math",
+  math: "katex",
+  latex: "katex",
 }
 
 /** Build a Map<codeBlockLang, plugin> for parseWithPositions. */
@@ -46,7 +57,7 @@ export function buildLangMap(plugins: WidgetPlugin[]): Map<string, WidgetPlugin>
 
 // ─── Default built-in widgets ───────────────────────────────
 
-const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin, attachmentPlugin]
+const _defaults: WidgetPlugin[] = [chartPlugin, mermaidPlugin, katexPlugin, tablePlugin, embedPlugin, excalidrawPlugin, mapPlugin, timelinePlugin, calendarPlugin, attachmentPlugin, diffPlugin, htmlPlugin, globePlugin]
 
 export function getDefaultWidgets(): WidgetPlugin[] {
   return _defaults
@@ -135,23 +146,42 @@ export function hydrateWidgets(
   const placeholders = container.querySelectorAll<HTMLElement>("[data-widget-spec]")
 
   for (const el of placeholders) {
+    let spec: WidgetSpec
     try {
-      const spec: WidgetSpec = JSON.parse(el.getAttribute("data-widget-spec")!)
-      const hydrator = registry.get(spec.type)
-      if (hydrator) {
-        const cleanup = hydrator(el, spec, theme)
-        if (cleanup) cleanups.push(cleanup)
+      spec = JSON.parse(el.getAttribute("data-widget-spec")!)
+    } catch (err) {
+      renderWidgetError(el, "widget", `Invalid widget spec JSON: ${err instanceof Error ? err.message : String(err)}`, theme)
+      continue
+    }
 
-        // Add expand-to-fullscreen button
-        if (spec.type !== "attachment") {
-          const expandCleanup = addExpandButton(el, spec, hydrator, theme)
-          cleanups.push(expandCleanup)
-        }
-      } else {
-        renderWidgetError(el, spec.type, `Unknown widget type: ${spec.type}`, theme)
+    const hydrator = registry.get(spec.type)
+    if (!hydrator) {
+      renderWidgetError(el, spec.type, `Unknown widget type: ${spec.type}`, theme)
+      continue
+    }
+
+    try {
+      const cleanup = hydrator(el, spec, theme)
+      if (cleanup) {
+        cleanups.push(() => {
+          try { cleanup() } catch (_) { /* ignore cleanup errors */ }
+        })
       }
     } catch (err) {
-      renderWidgetError(el, "widget", String(err), theme)
+      renderWidgetError(el, spec.type, err instanceof Error ? err.message : String(err), theme)
+      continue
+    }
+
+    // Add expand-to-fullscreen button
+    try {
+      if (spec.type !== "attachment") {
+        const expandCleanup = addExpandButton(el, spec, hydrator, theme)
+        cleanups.push(() => {
+          try { expandCleanup() } catch (_) { /* ignore cleanup errors */ }
+        })
+      }
+    } catch (err) {
+      // Expand button is non-critical; widget already rendered, just skip it
     }
   }
 
