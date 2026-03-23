@@ -8,6 +8,7 @@
  *   zoom?: number          — zoom level (default: 2)
  *   markers?: Array<{ location: [lat, lng], label?: string, color?: string, pin?: boolean }>
  *   paths?: Array<{ coordinates: [lat, lng][], color?: string, width?: number, dashed?: boolean }>
+ *   routes?: Array<{ from: [lat, lng], to: [lat, lng], color?: string, width?: number, dashed?: boolean, profile?: "driving" | "walking" | "cycling" }>
  *   height?: string        — CSS height (default: "400px")
  *   pitch?: number         — 3D tilt angle in degrees (default: 0)
  *   bearing?: number       — rotation in degrees (default: 0)
@@ -35,16 +36,92 @@ function loadMaplibreCSS() {
   link.rel = "stylesheet"
   link.href = MAPLIBRE_CSS_CDN
   document.head.appendChild(link)
+
+  const style = document.createElement("style")
+  style.textContent = `
+    .koen-map-popup .maplibregl-popup-content {
+      background: var(--widget-bg, #222220);
+      border: 1px solid var(--widget-border, #333);
+      color: var(--editor-fg, #e8e6e3);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      padding: 5px 10px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+    .koen-map-popup .maplibregl-popup-tip {
+      display: none;
+    }
+  `
+  document.head.appendChild(style)
 }
 
 export const mapPlugin: WidgetPlugin = {
   type: "map",
+  version: "1.0.0",
+  specSchema: {
+    type: "object",
+    properties: {
+      center: { type: "array", description: "[lat, lng] map center" },
+      zoom: { type: "number", description: "Zoom level" },
+      markers: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            location: { type: "array", description: "[lat, lng]" },
+            label: { type: "string" },
+            color: { type: "string" },
+            pin: { type: "boolean", description: "Teardrop pin style" },
+          },
+          required: ["location"],
+        },
+      },
+      paths: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            coordinates: { type: "array", description: "Array of [lat, lng] points" },
+            color: { type: "string" },
+            width: { type: "number" },
+            dashed: { type: "boolean" },
+          },
+          required: ["coordinates"],
+        },
+      },
+      routes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            from: { type: "array", description: "[lat, lng]" },
+            to: { type: "array", description: "[lat, lng]" },
+            color: { type: "string" },
+            width: { type: "number" },
+            dashed: { type: "boolean" },
+            profile: { type: "string", enum: ["driving", "walking", "cycling"] },
+          },
+          required: ["from", "to"],
+        },
+      },
+      height: { type: "string", description: "CSS height, e.g. '400px'" },
+      pitch: { type: "number", description: "3D tilt angle in degrees" },
+      bearing: { type: "number", description: "Rotation in degrees" },
+      style: { type: "string", description: "Custom MapLibre style URL" },
+      controls: { type: "boolean", description: "Show navigation controls" },
+    },
+  },
   codeBlockLang: "map",
   hydrate: (container, spec, theme) => {
     const center: [number, number] = spec.center || [0, 0]
     const zoom = spec.zoom ?? 2
     const markers: Array<{ location: [number, number]; label?: string; color?: string; pin?: boolean }> = spec.markers || []
     const paths: Array<{ coordinates: [number, number][]; color?: string; width?: number; dashed?: boolean }> = spec.paths || []
+    const routes: Array<{ from: [number, number]; to: [number, number]; color?: string; width?: number; dashed?: boolean; profile?: string }> = spec.routes || []
     const height = spec.height || "400px"
 
     loadMaplibreCSS()
@@ -81,6 +158,11 @@ export const mapPlugin: WidgetPlugin = {
         })
 
         mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right")
+        // Start attribution collapsed (just the ⓘ icon)
+        mapInstance.on("load", () => {
+          const el = wrapper.querySelector(".maplibregl-ctrl-attrib") as HTMLElement
+          if (el) el.classList.remove("maplibregl-compact-show")
+        })
 
         if (spec.controls) {
           mapInstance.addControl(new maplibregl.NavigationControl(), "top-left")
@@ -119,15 +201,14 @@ export const mapPlugin: WidgetPlugin = {
 
           if (m.label) {
             const popup = new maplibregl.Popup({
-              offset: m.pin ? 30 : 12,
+              offset: m.pin ? [0, 5] : [0, 8],
               closeButton: false,
               className: "koen-map-popup",
+              anchor: "top",
             })
-            const labelEl = document.createElement("div")
-            labelEl.style.cssText = "font-size:13px;padding:2px 4px"
-            labelEl.textContent = m.label
-            popup.setDOMContent(labelEl)
-            marker.setPopup(popup)
+            popup.setHTML(m.label)
+            el.addEventListener("mouseenter", () => popup.addTo(mapInstance).setLngLat([m.location[1], m.location[0]]))
+            el.addEventListener("mouseleave", () => popup.remove())
           }
         }
 
@@ -164,10 +245,79 @@ export const mapPlugin: WidgetPlugin = {
           })
         }
 
+        // Resolve routes via OSRM
+        if (routes.length > 0) {
+          const addRouteLayer = (routeIndex: number, coordinates: [number, number][], r: typeof routes[0]) => {
+            const id = `route-${routeIndex}`
+            mapInstance.addSource(id, {
+              type: "geojson",
+              data: {
+                type: "Feature",
+                properties: {},
+                geometry: { type: "LineString", coordinates },
+              },
+            })
+            mapInstance.addLayer({
+              id,
+              type: "line",
+              source: id,
+              layout: { "line-join": "round", "line-cap": "round" },
+              paint: {
+                "line-color": r.color || "#3b82f6",
+                "line-width": r.width || 3,
+                ...(r.dashed ? { "line-dasharray": [2, 2] } : {}),
+              },
+            })
+          }
+
+          const addRoutePill = (distance: number, duration: number) => {
+            const km = distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} m`
+            const mins = Math.round(duration / 60)
+            const timeStr = mins >= 60 ? `${Math.floor(mins / 60)} hr ${mins % 60} min` : `${mins} min`
+
+            const pill = document.createElement("div")
+            pill.textContent = `${timeStr} · ${km}`
+            pill.style.cssText = `
+              position: absolute; top: 12px; right: 12px;
+              background: var(--widget-bg, #222220);
+              border: 1px solid var(--widget-border, #333);
+              color: var(--editor-fg, #e8e6e3);
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              font-size: 12px; font-weight: 500;
+              padding: 5px 14px;
+              border-radius: 20px;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+              pointer-events: none;
+              z-index: 10;
+            `
+            wrapper.style.position = "relative"
+            wrapper.appendChild(pill)
+          }
+
+          for (let i = 0; i < routes.length; i++) {
+            const r = routes[i]
+            const profile = r.profile || "driving"
+            const url = `https://router.project-osrm.org/route/v1/${profile}/${r.from[1]},${r.from[0]};${r.to[1]},${r.to[0]}?overview=full&geometries=geojson`
+            fetch(url)
+              .then(res => res.json())
+              .then(data => {
+                if (disposed || !data.routes?.[0]) return
+                const route = data.routes[0]
+                const coords = route.geometry.coordinates
+                const draw = () => { if (!disposed) addRouteLayer(i, coords, r) }
+                if (mapInstance.isStyleLoaded()) draw()
+                else mapInstance.on("load", draw)
+                if (i === 0) addRoutePill(route.distance, route.duration)
+              })
+              .catch(() => {})
+          }
+        }
+
         // Only auto-fit if no explicit center was provided
         const allPoints = [
           ...markers.map(m => m.location),
           ...paths.flatMap(p => p.coordinates),
+          ...routes.flatMap(r => [r.from, r.to]),
         ]
         if (!spec.center && allPoints.length > 1) {
           const bounds = new maplibregl.LngLatBounds()
